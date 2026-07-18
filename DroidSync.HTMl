@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DroidSync Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg-base: #020617; 
+    --panel-bg: rgba(15, 23, 42, 0.75);
+    --line: rgba(56, 189, 248, 0.2); 
+    --line-solid: #1e293b;
+    --text: #f8fafc;
+    --dim: #94a3b8; 
+    --accent: #38bdf8; 
+    --modal-bg: #0f172a;
+    --blur: blur(16px);
+  }
+
+  body.light-theme {
+    --bg-base: #f1f5f9;
+    --panel-bg: rgba(255, 255, 255, 0.85);
+    --line: rgba(14, 165, 233, 0.3);
+    --line-solid: #cbd5e1;
+    --text: #0f172a;
+    --dim: #475569;
+    --modal-bg: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+  
+  body {
+    margin: 0; background: var(--bg-base); color: var(--text);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    height: 100vh; width: 100vw; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+
+  /* --- FLOATING HEADER --- */
+  header {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    width: calc(100% - 32px); max-width: 1100px; padding: 12px 20px; 
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel-bg); backdrop-filter: var(--blur);
+    border: 1px solid var(--line); border-radius: 100px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 10;
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+
+  .logo-area { display: flex; align-items: center; gap: 10px; }
+  .logo-area svg { color: var(--accent); fill: currentColor; transition: color 0.3s ease; }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; color: var(--text); letter-spacing: 0.5px; }
+  
+  .status-pill { display: flex; align-items: center; gap: 12px; background: rgba(125,125,125,0.1); padding: 4px 12px; border-radius: 20px;}
+  .status { font-size: 12px; font-weight: 500; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); display: inline-block; transition: 0.3s; }
+  .dot.on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  
+  .stats-bar { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 600; color: var(--text); border-left: 1px solid var(--line-solid); padding-left: 12px; }
+  .stats-item span { color: var(--dim); font-weight: 400; }
+
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+
+  /* --- BUTTONS --- */
+  .btn {
+    background: rgba(125, 125, 125, 0.1); border: 1px solid var(--line-solid); color: var(--text);
+    padding: 8px 16px; border-radius: 100px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500; transition: all 0.2s ease;
+  }
+  .btn:hover:not(:disabled) { background: rgba(125,125,125,0.2); border-color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); color: #fff; border: none; font-weight: 600; }
+  .btn.primary:hover:not(:disabled) { opacity: 0.85; }
+  .btn.icon { padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;}
+
+  /* --- APP MENU --- */
+  .app-drawer-btn { background: transparent; border: none; color: var(--text); cursor: pointer; padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .app-menu { position: absolute; top: 65px; right: 20px; background: var(--panel-bg); backdrop-filter: var(--blur); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: 0.2s; }
+  .app-menu.active { opacity: 1; pointer-events: auto; }
+  .app-item { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; cursor: pointer; width: 80px; }
+  .app-item:hover { background: rgba(125,125,125,0.15); }
+  .app-item svg { width: 24px; height: 24px; color: var(--accent); transition: color 0.3s ease;}
+  .app-item span { font-size: 11px; text-align: center; color: var(--text); }
+
+  /* --- MAIN STAGE --- */
+  main {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    padding: 80px 20px 140px 20px; 
+    display: flex; align-items: center; justify-content: center; z-index: 1;
+  }
+  .stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+  
+  #screen {
+    max-width: 100%; max-height: 100%; object-fit: contain; 
+    border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    cursor: crosshair; touch-action: none; background: transparent; 
+    border: 1px solid var(--line-solid);
+  }
+  .placeholder { color: var(--dim); font-size: 13px; text-align: center; padding: 20px; max-width: 400px; background: var(--panel-bg); border-radius: 16px; border: 1px solid var(--line-solid); }
+
+  /* --- PINNED APP DOCK --- */
+  .pinned-dock {
+    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-bg); backdrop-filter: var(--blur);
+    border: 1px solid var(--line); border-radius: 24px; padding: 8px 14px;
+    display: flex; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 10;
+  }
+  .dock-icon {
+    width: 40px; height: 40px; border-radius: 12px; background: rgba(125,125,125,0.1);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid var(--line-solid); transition: all 0.2s; font-size: 20px;
+  }
+  .dock-icon:hover { transform: translateY(-4px) scale(1.05); border-color: var(--accent); background: rgba(125,125,125,0.2); }
+  .edit-dock-btn { font-size: 16px; background: transparent; border-style: dashed; }
+
+  /* --- BOTTOM CONTROLS --- */
+  .bottom-controls {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-bg); backdrop-filter: var(--blur);
+    border: 1px solid var(--line); border-radius: 100px; padding: 8px 16px;
+    display: flex; align-items: center; gap: 6px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 10;
+  }
+  
+  .slider-wrapper { display: flex; align-items: center; gap: 6px; margin-left: 4px; }
+  input[type=range] { -webkit-appearance: none; width: 70px; background: transparent; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: var(--line-solid); border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: var(--accent); margin-top: -4px; transition: background 0.3s; }
+
+  /* --- MODALS --- */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 50;
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+  .modal-content {
+    background: var(--modal-bg); border: 1px solid var(--line); border-radius: 24px;
+    width: 600px; max-width: 90vw; display: flex; flex-direction: column; max-height: 85vh; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    transition: background 0.3s ease;
+  }
+  .modal-header { padding: 16px 24px; border-bottom: 1px solid var(--line-solid); display: flex; justify-content: space-between; align-items: center; }
+  .modal-body { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+  
+  .shell-output { background: rgba(125,125,125,0.05); border: 1px solid var(--line-solid); border-radius: 8px; padding: 12px; font-size: 12px; font-family: monospace; height: 250px; overflow-y: auto; white-space: pre-wrap; color: var(--text);}
+  .term-input-wrapper { display: flex; gap: 8px; }
+  #termInput { flex: 1; background: transparent; border: 1px solid var(--line-solid); color: var(--text); padding: 10px; border-radius: 8px; outline: none; }
+  #termInput:focus { border-color: var(--accent); }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .info-card { background: rgba(125,125,125,0.05); padding: 14px; border-radius: 12px; border: 1px solid var(--line-solid); }
+  .info-label { font-size: 11px; color: var(--dim); text-transform: uppercase; margin-bottom: 4px; }
+  .info-val { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  .app-selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .app-select-card { display: flex; align-items: center; gap: 8px; background: rgba(125,125,125,0.05); border: 1px solid var(--line-solid); padding: 10px; border-radius: 10px; cursor: pointer; transition: 0.2s;}
+  .app-select-card:hover { border-color: var(--accent); }
+  .app-select-card.selected { border-color: var(--accent); background: rgba(125,125,125,0.15); }
+  .app-select-card span { font-size: 12px; color: var(--text); }
+  
+  .color-picker-row { display: flex; align-items: center; justify-content: space-between; background: rgba(125,125,125,0.05); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line-solid); }
+  .color-picker-row label { font-size: 13px; font-weight: 500; }
+  .color-picker-row input[type="color"] { -webkit-appearance: none; border: none; width: 40px; height: 26px; border-radius: 6px; cursor: pointer; background: transparent; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-area">
+    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.5 9c0-2-1.5-3.8-3.5-4.5L14.7 3c.1-.2 0-.5-.2-.6-.2-.1-.5 0-.6.2l-.7 1.4C12.8 4 12.4 4 12 4s-.8 0-1.2.1l-.7-1.4c-.1-.2-.4-.3-.6-.2-.2.1-.3.4-.2.6l.7 1.5C8 5.2 6.5 7 6.5 9h11z"/>
+      <path d="M6.5 10v7c0 .8.7 1.5 1.5 1.5h1v3c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-3h0v3c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-3h1c.8 0 1.5-.7 1.5-1.5v-7h-11z"/>
+      <path d="M5 10c-.8 0-1.5.7-1.5 1.5v5c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-5c0-.8-.7-1.5-1.5-1.5z"/>
+      <path d="M19 10c-.8 0-1.5.7-1.5 1.5v5c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-5c0-.8-.7-1.5-1.5-1.5z"/>
+      <circle cx="9.5" cy="7" r="0.8" fill="#fff"/><circle cx="14.5" cy="7" r="0.8" fill="#fff"/>
+    </svg>
+    <h1>DroidSync</h1>
+    <div class="status-pill"><div class="status"><span class="dot" id="dot"></span><span id="statusText">Disconnected</span></div></div>
+    <div class="stats-bar" id="statsBar" style="display: none;">
+      <div class="stats-item">FPS: <span id="statFps">0</span></div>
+      <div class="stats-item">LAT: <span id="statLat">0ms</span></div>
+      <div class="stats-item">CPU: <span id="statCpu">0%</span></div>
+      <div class="stats-item">RAM: <span id="statRam">0%</span></div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn primary" id="connectBtn">Connect Device</button>
+    <button class="btn" id="mirrorBtn" disabled>Start Mirror</button>
+    <button class="btn icon" id="themeToggleBtn" title="Toggle Theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+    </button>
+    <button class="app-drawer-btn" id="appDrawerBtn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+    </button>
+  </div>
+
+  <div class="app-menu" id="appMenu">
+    <div class="app-item" onclick="openModal('termModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg><span>Terminal</span></div>
+    <div class="app-item" onclick="loadDeviceInfo(); openModal('infoModal');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><path d="M9 9h6v6H9z"/></svg><span>System & Theme</span></div>
+    <div class="app-item" onclick="openModal('logcatModal'); toggleLogcat(true);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg><span>Logcat</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="placeholder" id="placeholder">Pick your device and authorize USB debugging options to begin monitoring.</div>
+    <canvas id="screen" style="display:none"></canvas>
+  </div>
+</main>
+
+<div class="pinned-dock" id="pinnedDock" style="display: none;"></div>
+
+<div class="bottom-controls">
+  <button class="btn" id="btnPower">Power</button>
+  <button class="btn" id="btnVolDown">Vol -</button>
+  <button class="btn" id="btnVolUp">Vol +</button>
+  <div style="width: 1px; background: var(--line-solid); margin: 0 4px; height: 20px;"></div>
+  <div class="slider-wrapper"><input type="range" id="brightnessSlider" min="10" max="200" value="100"></div>
+  <div style="width: 1px; background: var(--line-solid); margin: 0 4px; height: 20px;"></div>
+  <button class="btn" id="btnHome">Home</button>
+  <button class="btn" id="btnBack">Back</button>
+  <button class="btn" id="btnRecent">Recents</button>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="termModal" onclick="closeModals(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header"><h2>Shell Terminal</h2><button class="btn icon" onclick="closeModals()">✕</button></div>
+    <div class="modal-body"><div id="termOutput" class="shell-output" style="color:var(--accent);"></div><div class="term-input-wrapper"><input type="text" id="termInput" autocomplete="off"><button class="btn primary" id="termSendBtn">Run</button></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="infoModal" onclick="closeModals(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header"><h2>System & Theme Engine</h2><button class="btn icon" onclick="closeModals()">✕</button></div>
+    <div class="modal-body">
+      <div class="info-grid">
+        <div class="info-card"><div class="info-label">Model</div><div class="info-val" id="infModel">-</div></div>
+        <div class="info-card"><div class="info-label">Kernel Version</div><div class="info-val" id="infKernel">-</div></div>
+        <div class="info-card"><div class="info-label">System Uptime</div><div class="info-val" id="infUptime">-</div></div>
+        <div class="info-card"><div class="info-label">Thermal Engine</div><div class="info-val" id="infTemp">-</div></div>
+        <div class="info-card"><div class="info-label">Storage Layout</div><div class="info-val" id="infStorage">-</div></div>
+        <div class="info-card"><div class="info-label">Display Controls</div>
+          <div style="display: flex; gap: 4px; margin-top: 4px;"><button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="setOrientation(0)">Port</button><button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="setOrientation(1)">Land</button></div>
+        </div>
+      </div>
+      <h3 style="font-size: 11px; text-transform: uppercase; color: var(--dim); margin: 10px 0 0 0;">Color Layout Studio</h3>
+      <div class="color-picker-row">
+        <label>Dark Theme Accent</label>
+        <input type="color" id="darkColorPicker" value="#38bdf8">
+      </div>
+      <div class="color-picker-row">
+        <label>Light Theme Accent</label>
+        <input type="color" id="lightColorPicker" value="#0284c7">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="logcatModal" onclick="closeModals(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header"><h2>Logcat Output</h2><button class="btn icon" onclick="closeModals(); toggleLogcat(false);">✕</button></div>
+    <div class="modal-body"><div id="logcatOutput" class="shell-output" style="color: #10b981;"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="dockModal" onclick="closeModals(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header"><h2>Customize App Dock</h2><button class="btn icon" onclick="closeModals()">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size: 13px; color: var(--dim); margin-bottom: -10px;">Select up to 8 apps to pin to your quick dock.</div>
+      <div class="app-selector-grid" id="appConfigGrid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =========================================================================
+// CORE MATH AND GLOBALS (PROTECTED FROM HOISTING ISSUES)
+// =========================================================================
+window.strToBytes = function(s) { return new TextEncoder().encode(s); };
+window.bytesToStr = function(b) { return new TextDecoder().decode(b); };
+window.b64uToBigInt = function(b64u) { const bin = atob(b64u.replace(/-/g, '+').replace(/_/g, '/')); let hex = '0x'; for(let i=0; i<bin.length; i++) hex += bin.charCodeAt(i).toString(16).padStart(2, '0'); return BigInt(hex); };
+window.modPow = function(base, exp, mod) { let r = 1n; base %= mod; while(exp > 0n) { if(exp & 1n) r = (r * base) % mod; exp >>= 1n; base = (base * base) % mod; } return r; };
+window.bigIntToBytesBE = function(x, len) { const b = new Uint8Array(len); for(let i = len - 1; i >= 0; i--) { b[i] = Number(x & 0xffn); x >>= 8n; } return b; };
+window.bigIntToBytesLE = function(x, len) { const b = new Uint8Array(len); for(let i = 0; i < len; i++) { b[i] = Number(x & 0xffn); x >>= 8n; } return b; };
+window.modInverse = function(a, m) { let [oR, r] = [a, m], [oS, s] = [1n, 0n]; while(r !== 0n) { const q = oR / r; [oR, r] = [r, oR - q * r]; [oS, s] = [s, oS - q * s]; } let inv = oR === 1n ? oS % m : 0n; if(inv < 0n) inv += m; return inv; };
+window.CRC_TABLE_COMP = (() => { const t = []; for(let n = 0; n < 256; n++) { let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+window.crc32_rec = function(buf) { let crc = 0xFFFFFFFF; for(let i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ window.CRC_TABLE_COMP[(crc ^ buf[i]) & 0xFF]; return (crc ^ 0xFFFFFFFF) >>> 0; };
+window.concatBytes_rec = function(...arrs) { const len = arrs.reduce((a, b) => a + b.length, 0); const out = new Uint8Array(len); let o = 0; for(const a of arrs) { out.set(a, o); o += a.length; } return out; };
+window.cmdId = function(s) { return s.charCodeAt(0) | (s.charCodeAt(1) << 8) | (s.charCodeAt(2) << 16) | (s.charCodeAt(3) << 24); };
+window.CMD = { CNXN: window.cmdId('CNXN'), AUTH: window.cmdId('AUTH'), OPEN: window.cmdId('OPEN'), OKAY: window.cmdId('OKAY'), CLSE: window.cmdId('CLSE'), WRTE: window.cmdId('WRTE') };
+
+const q = (id) => document.getElementById(id);
+const dot = q('dot'), statusText = q('statusText'), canvas = q('screen'), ctx = canvas.getContext('2d'), placeholder = q('placeholder');
+
+// --- THEME & UI LOGIC ---
+let isLightMode = localStorage.getItem('ds_light_mode') === 'true';
+const savedDarkAccent = localStorage.getItem('ds_dark_accent') || '#38bdf8';
+const savedLightAccent = localStorage.getItem('ds_light_accent') || '#0284c7';
+q('darkColorPicker').value = savedDarkAccent;
+q('lightColorPicker').value = savedLightAccent;
+
+function applyThemeColors() {
+  if (isLightMode) {
+    document.body.classList.add('light-theme');
+    document.documentElement.style.setProperty('--accent', savedLightAccent);
+  } else {
+    document.body.classList.remove('light-theme');
+    document.documentElement.style.setProperty('--accent', savedDarkAccent);
+  }
+}
+applyThemeColors();
+
+q('darkColorPicker').addEventListener('input', (e) => {
+  localStorage.setItem('ds_dark_accent', e.target.value);
+  if (!isLightMode) document.documentElement.style.setProperty('--accent', e.target.value);
+});
+q('lightColorPicker').addEventListener('input', (e) => {
+  localStorage.setItem('ds_light_accent', e.target.value);
+  if (isLightMode) document.documentElement.style.setProperty('--accent', e.target.value);
+});
+q('themeToggleBtn').addEventListener('click', () => {
+  isLightMode = !isLightMode;
+  localStorage.setItem('ds_light_mode', isLightMode);
+  applyThemeColors();
+});
+
+q('appDrawerBtn').addEventListener('click', (e) => { e.stopPropagation(); q('appMenu').classList.toggle('active'); });
+document.addEventListener('click', () => q('appMenu').classList.remove('active'));
+function openModal(id) { q('appMenu').classList.remove('active'); q(id).classList.add('active'); }
+function closeModals(e) { if (e && e.target !== e.currentTarget) return; document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
+function setStatus(text, connected){ statusText.textContent = text; dot.classList.toggle('on', !!connected); }
+q('brightnessSlider').addEventListener('input', (e) => { canvas.style.filter = `brightness(${e.target.value}%)`; });
+
+// --- CATALOG SPECIFICATION ---
+const APP_CATALOG = [
+  { id: 'settings', name: 'Settings', cmd: 'am start -a android.settings.SETTINGS', icon: '⚙️' },
+  { id: 'messages', name: 'Messages', cmd: 'am start -a android.intent.action.MAIN -c android.intent.category.APP_MESSAGING', icon: '💬' },
+  { id: 'chrome', name: 'Chrome', cmd: 'am start -n com.android.chrome/com.google.android.apps.chrome.Main', icon: '🌐' },
+  { id: 'youtube', name: 'YouTube', cmd: 'am start -n com.google.android.youtube/com.google.android.apps.youtube.app.watchwhile.WatchWhileActivity', icon: '▶️' },
+  { id: 'discord', name: 'Discord', cmd: 'am start -n com.discord/com.discord.app.AppActivity', icon: '👾' },
+  { id: 'dialer', name: 'Phone', cmd: 'am start -a android.intent.action.DIAL', icon: '📞' },
+  { id: 'camera', name: 'Camera', cmd: 'am start -a android.media.action.STILL_IMAGE_CAMERA', icon: '📷' },
+  { id: 'gmail', name: 'Gmail', cmd: 'am start -n com.google.android.gm/com.google.android.gm.ConversationListActivityGmail', icon: '📧' },
+  { id: 'maps', name: 'Maps', cmd: 'am start -n com.google.android.apps.maps/com.google.android.maps.MapsActivity', icon: '🗺️' },
+  { id: 'photos', name: 'Photos', cmd: 'am start -n com.google.android.apps.photos/com.google.android.apps.photos.home.HomeActivity', icon: '🖼️' },
+  { id: 'spotify', name: 'Spotify', cmd: 'am start -n com.spotify.music/com.spotify.music.MainActivity', icon: '🎵' },
+  { id: 'playstore', name: 'Play Store', cmd: 'am start -n com.android.vending/com.android.vending.AssetBrowserActivity', icon: '🛍️' },
+  { id: 'whatsapp', name: 'WhatsApp', cmd: 'am start -n com.whatsapp/com.whatsapp.Main', icon: '🟢' },
+  { id: 'instagram', name: 'Instagram', cmd: 'am start -n com.instagram.android/com.instagram.mainactivity.MainActivity', icon: '📸' },
+  { id: 'clock', name: 'Clock', cmd: 'am start -a android.intent.action.SHOW_ALARMS', icon: '⏰' }
+];
+
+let pinnedAppIds = JSON.parse(localStorage.getItem('novasync_pinned')) || ['settings', 'messages', 'chrome', 'youtube'];
+
+function renderDock() {
+  const dock = q('pinnedDock'); dock.innerHTML = '';
+  pinnedAppIds.forEach(id => {
+    const app = APP_CATALOG.find(a => a.id === id); if(!app) return;
+    const el = document.createElement('div'); el.className = 'dock-icon'; el.title = app.name; el.innerHTML = app.icon;
+    el.onclick = () => runMacro(app.cmd); dock.appendChild(el);
+  });
+  const editBtn = document.createElement('div'); editBtn.className = 'dock-icon edit-dock-btn'; editBtn.title = "Configure Dock"; editBtn.innerHTML = `+`;
+  editBtn.onclick = buildDockConfigMenu; dock.appendChild(editBtn);
+}
+
+function buildDockConfigMenu() {
+  const grid = q('appConfigGrid'); grid.innerHTML = '';
+  APP_CATALOG.forEach(app => {
+    const card = document.createElement('div'); card.className = `app-select-card ${pinnedAppIds.includes(app.id) ? 'selected' : ''}`;
+    card.innerHTML = `<div class="app-select-icon">${app.icon}</div><span>${app.name}</span>`;
+    card.onclick = () => {
+      if (pinnedAppIds.includes(app.id)) { pinnedAppIds = pinnedAppIds.filter(id => id !== app.id); card.classList.remove('selected'); }
+      else if (pinnedAppIds.length < 8) { pinnedAppIds.push(app.id); card.classList.add('selected'); }
+      localStorage.setItem('novasync_pinned', JSON.stringify(pinnedAppIds)); renderDock();
+    };
+    grid.appendChild(card);
+  });
+  openModal('dockModal');
+}
+renderDock();
+
+// --- PROTOCOL HANDLER ---
+class AdbKey {
+  static async generate(){
+    const kp = await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-1'},true,['sign','verify']);
+    const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    const k = new AdbKey(); k.n=window.b64uToBigInt(jwk.n); k.d=window.b64uToBigInt(jwk.d); k.e=65537n; return k;
+  }
+  signToken(tb){
+    const di = window.concatBytes_rec(new Uint8Array([0x30,0x21,0x30,0x09,0x06,0x05,0x2b,0x0e,0x03,0x02,0x1a,0x05,0x00,0x04,0x14]), tb), psLen = 256 - di.length - 3, em = new Uint8Array(256);
+    em[0]=0x00; em[1]=0x01; for(let i=0;i<psLen;i++) em[2+i]=0xFF; em[2+psLen]=0x00; em.set(di, 3+psLen);
+    let hex='0x'; for(const b of em) hex+=b.toString(16).padStart(2,'0'); return window.bigIntToBytesBE(window.modPow(BigInt(hex), this.d, this.n), 256);
+  }
+  publicKeyBlob(){
+    const words=64, n0=this.n&0xffffffffn, n0invPos=window.modInverse(n0,1n<<32n), n0inv=((1n<<32n)-n0invPos)%(1n<<32n), RR=window.modPow(2n,BigInt(words*32*2),this.n);
+    const buf=new Uint8Array(524), dv=new DataView(buf.buffer); dv.setUint32(0,words,true); dv.setUint32(4,Number(n0inv),true);
+    buf.set(window.bigIntToBytesLE(this.n,256), 8); buf.set(window.bigIntToBytesLE(RR,256), 264); dv.setUint32(520,Number(this.e),true);
+    let bin=''; for(const b of buf) bin+=String.fromCharCode(b); return window.strToBytes(btoa(bin)+' webadb@browser\0');
+  }
+}
+
+class UsbTransport {
+  constructor(dev, epIn, epOut){ this.device=dev; this.epIn=epIn; this.epOut=epOut; this._chain=Promise.resolve(); }
+  static async open(){
+    const dev = await navigator.usb.requestDevice({filters:[{classCode:0xff,subclassCode:0x42,protocolCode:0x01}]});
+    await dev.open(); try { await dev.reset(); } catch(e){}
+    if(dev.configuration===null) await dev.selectConfiguration(1);
+    let iNum=-1, epIn=-1, epOut=-1;
+    for(const c of dev.configurations) for(const i of c.interfaces) for(const a of i.alternates){
+      if(a.interfaceClass===0xff && a.interfaceSubclass===0x42 && a.interfaceProtocol===0x01){ iNum=i.interfaceNumber; for(const ep of a.endpoints){ if(ep.type==='bulk'&&ep.direction==='in') epIn=ep.endpointNumber; else if(ep.type==='bulk'&&ep.direction==='out') epOut=ep.endpointNumber; } }
+    }
+    await dev.claimInterface(iNum); return new UsbTransport(dev, epIn, epOut);
+  }
+  writeHeader(cmd, arg0, arg1, payload){
+    this._chain = this._chain.then(async ()=>{
+      const dLen = payload?payload.length:0, buf=new ArrayBuffer(24), dv=new DataView(buf);
+      dv.setUint32(0,cmd,true); dv.setUint32(4,arg0>>>0,true); dv.setUint32(8,arg1>>>0,true);
+      dv.setUint32(12,dLen,true); dv.setUint32(16,payload?window.crc32_rec(payload):0,true); dv.setUint32(20,(~cmd)>>>0,true);
+      await this.device.transferOut(this.epOut, buf); if(dLen>0) await this.device.transferOut(this.epOut, payload);
+    }); return this._chain;
+  }
+  async readMessage(){
+    const h = await this._read(24), dv = new DataView(h.buffer);
+    const cmd=dv.getUint32(0,true), arg0=dv.getUint32(4,true), arg1=dv.getUint32(8,true), dLen=dv.getUint32(12,true);
+    return { cmd, arg0, arg1, payload: dLen>0 ? await this._read(dLen) : new Uint8Array(0) };
+  }
+  async _read(n){
+    const chunks=[]; let got=0;
+    while(got<n){ const r = await this.device.transferIn(this.epIn, n-got); const b = new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength); chunks.push(b); got+=b.length; if(b.length===0) break; }
+    return window.concatBytes_rec(...chunks);
+  }
+}
+
+class AdbConnection {
+  constructor(t, key){ this.t=t; this.key=key; this.nextId=1; this.streams=new Map(); this.running=false; }
+  async connect(){
+    await this.t.writeHeader(window.CMD.CNXN, 0x01000001, 1048576, window.strToBytes('host::webadb-mirror\0'));
+    let m = await this.t.readMessage();
+    if(m.cmd===window.CMD.AUTH && m.arg0===1){ await this.t.writeHeader(window.CMD.AUTH, 2, 0, this.key.signToken(m.payload)); m = await this.t.readMessage(); }
+    if(m.cmd===window.CMD.AUTH){
+      setStatus('Allow USB Prompt', false); await this.t.writeHeader(window.CMD.AUTH, 3, 0, this.key.publicKeyBlob());
+      const start = Date.now(); while(Date.now()-start<30000){ m = await this.t.readMessage(); if(m.cmd===window.CMD.CNXN) break; }
+    }
+    if(m.cmd!==window.CMD.CNXN) throw new Error('Handshake Engine Failure');
+    this.running = true; this._pump(); return window.bytesToStr(m.payload);
+  }
+  async _pump(){ while(this.running){ try { const m = await this.t.readMessage(); const st = this.streams.get(m.arg1); if(st){ if(st.res.length) st.res.shift()(m); else st.q.push(m); } } catch(e){ this.running=false; } } }
+  _reg(id){ const st={q:[],res:[]}; this.streams.set(id,st); return st; }
+  _nxt(id,st){ return new Promise(r => { if(st.q.length) r(st.q.shift()); else st.res.push(r); }); }
+  async runShell(cmd){
+    const id = this.nextId++, st = this._reg(id); await this.t.writeHeader(window.CMD.OPEN, id, 0, window.strToBytes(`shell:${cmd}\0`));
+    let m = await this._nxt(id, st); if(m.cmd===window.CMD.CLSE){ this.streams.delete(id); return new Uint8Array(0); }
+    const rId = m.arg0, chunks = [];
+    while(true){ m = await this._nxt(id, st); if(m.cmd===window.CMD.CLSE) break; if(m.cmd===window.CMD.WRTE){ chunks.push(m.payload); await this.t.writeHeader(window.CMD.OKAY, id, rId); } }
+    this.streams.delete(id); return window.concatBytes_rec(...chunks);
+  }
+  openStream(service){
+    const id = this.nextId++, st = this._reg(id), conn = this; let rId = null, stopped = false;
+    const gen = (async function*(){
+      await conn.t.writeHeader(window.CMD.OPEN, id, 0, window.strToBytes(`${service}\0`));
+      let m = await conn._nxt(id, st); if(m.cmd===window.CMD.CLSE){ conn.streams.delete(id); return; } rId = m.arg0;
+      while(!stopped){ m = await conn._nxt(id, st); if(m.cmd===window.CMD.CLSE) break; if(m.cmd===window.CMD.WRTE){ yield m.payload; await conn.t.writeHeader(window.CMD.OKAY, id, rId); } }
+      conn.streams.delete(id);
+    })();
+    return { [Symbol.asyncIterator](){ return gen; }, stop: async ()=>{ stopped=true; if(rId!=null)try{await conn.t.writeHeader(window.CMD.CLSE,id,rId);}catch(e){} conn.streams.delete(id); } };
+  }
+}
+
+// --- TELEMETRY & AUTO-ORIENTATION ENGINE ---
+let conn = null, baseDeviceSize = null, dynamicDeviceSize = null;
+let mirrorActive = false, currentStream = null, activeLogcatStream = null, telemetryTimer = null;
+let currentRotation = 0;
+
+async function runMacro(cmd) { if(conn) try { await conn.runShell(cmd); } catch(e){} }
+async function setOrientation(rot) {
+    if(!conn) return;
+    await conn.runShell(`settings put system accelerometer_rotation 0`);
+    await conn.runShell(`settings put system user_rotation ${rot}`);
+}
+
+async function checkOrientationAndRestart() {
+    try {
+        const raw = window.bytesToStr(await conn.runShell("dumpsys input | grep 'SurfaceOrientation'"));
+        const match = raw.match(/SurfaceOrientation:\s*(\d)/);
+        if (match) {
+            const rot = parseInt(match[1]);
+            if (rot !== currentRotation) {
+                currentRotation = rot;
+                if (mirrorActive) {
+                    if (currentStream) { currentStream.stop().catch(()=>{}); currentStream = null; }
+                    setTimeout(startStream, 500);
+                }
+            }
+        }
+    } catch(e){}
+}
+
+async function startTelemetryLoop() {
+  if (telemetryTimer) clearInterval(telemetryTimer);
+  telemetryTimer = setInterval(async () => {
+    if (!conn) return; await checkOrientationAndRestart(); if (!mirrorActive) return;
+    try {
+      const cpuRaw = window.bytesToStr(await conn.runShell("top -n 1 -m 1 | grep 'User'")).trim();
+      const cpuMatch = cpuRaw.match(/(\d+)%\s+user/); if (cpuMatch) q('statCpu').textContent = cpuMatch[1] + '%';
+      const memRaw = window.bytesToStr(await conn.runShell("cat /proc/meminfo | grep -E 'MemTotal|MemAvailable'"));
+      const total = memRaw.match(/MemTotal:\s+(\d+)/), avail = memRaw.match(/MemAvailable:\s+(\d+)/);
+      if (total && avail) { q('statRam').textContent = Math.round(((total[1] - avail[1]) / total[1]) * 100) + '%'; }
+    } catch(e){}
+  }, 2500);
+}
+
+async function toggleLogcat(start) {
+  const out = q('logcatOutput'); if (!start && activeLogcatStream) { activeLogcatStream.stop().catch(()=>{}); activeLogcatStream = null; return; }
+  if (start && conn) {
+    out.textContent = ""; activeLogcatStream = conn.openStream('shell:logcat -v brief');
+    for await (const chunk of activeLogcatStream) { out.textContent += window.bytesToStr(chunk); out.scrollTop = out.scrollHeight; }
+  }
+}
+
+async function loadDeviceInfo() {
+  if (!conn) return; const get = async (cmd) => window.bytesToStr(await conn.runShell(cmd)).trim();
+  q('infModel').textContent = await get('getprop ro.product.model');
+  q('infKernel').textContent = (await get('uname -r')).substring(0, 30);
+  q('infUptime').textContent = (await get('uptime')).split(',')[0];
+  const tempStr = await get('cat /sys/class/thermal/thermal_zone0/temp');
+  q('infTemp').textContent = tempStr ? (parseInt(tempStr)/1000).toFixed(1) + ' °C' : 'N/A';
+  const storageRaw = await get('df -h /sdcard | grep sdcard');
+  q('infStorage').textContent = storageRaw ? storageRaw.replace(/\s+/g, ' ').split(' ')[4] + ' Used' : 'Unknown';
+}
+
+// --- CONNECTION AND SCALE BOUNDARIES ---
+q('connectBtn').addEventListener('click', async () => {
+  try {
+    setStatus('Linking…', false); const transport = await UsbTransport.open(); const key = await AdbKey.generate();
+    conn = new AdbConnection(transport, key); await conn.connect(); setStatus('Ready', true);
+    q('mirrorBtn').disabled = false; q('statsBar').style.display = 'flex'; q('pinnedDock').style.display = 'flex'; q('connectBtn').textContent = 'Sync Complete';
+    const sizeMatch = window.bytesToStr(await conn.runShell('wm size')).match(/(\d+)x(\d+)/);
+    if (sizeMatch) { baseDeviceSize = { w:+sizeMatch[1], h:+sizeMatch[2] }; dynamicDeviceSize = { ...baseDeviceSize }; }
+    startTelemetryLoop();
+  } catch (e){ setStatus('Link Halted', false); alert(e.message); }
+});
+
+q('mirrorBtn').addEventListener('click', () => {
+  if (mirrorActive) { mirrorActive = false; if (currentStream) currentStream.stop().catch(()=>{}); q('mirrorBtn').textContent = 'Start Mirror'; q('mirrorBtn').classList.remove('primary'); }
+  else { mirrorActive = true; placeholder.style.display = 'none'; canvas.style.display = 'block'; q('mirrorBtn').textContent = 'Stop Mirror'; q('mirrorBtn').classList.add('primary'); startStream(); }
+});
+
+function splitAnnexB(buf){
+  const positions = [];
+  for (let i=0; i+2<buf.length; i++){
+    if (buf[i]===0 && buf[i+1]===0 && buf[i+2]===1){ positions.push({start:i,len:3}); i+=2; }
+    else if (i+3<buf.length && buf[i]===0 && buf[i+1]===0 && buf[i+2]===0 && buf[i+3]===1){ positions.push({start:i,len:4}); i+=3; }
+  }
+  if (positions.length < 2) return { nals: [], rest: buf };
+  return { nals: [buf.slice(positions[0].start+positions[0].len, positions[1].start)], rest: buf.slice(positions[1].start) };
+}
+
+async function startStream(){
+  if (!baseDeviceSize) return;
+  const isLandscape = (currentRotation === 1 || currentRotation === 3);
+  dynamicDeviceSize.w = isLandscape ? Math.max(baseDeviceSize.w, baseDeviceSize.h) : Math.min(baseDeviceSize.w, baseDeviceSize.h);
+  dynamicDeviceSize.h = isLandscape ? Math.min(baseDeviceSize.w, baseDeviceSize.h) : Math.max(baseDeviceSize.w, baseDeviceSize.h);
+  const outW = Math.round(dynamicDeviceSize.w * 0.65 / 2) * 2; const outH = Math.round(dynamicDeviceSize.h * 0.65 / 2) * 2;
+  let frameCount = 0, lastFpsTs = performance.now();
+  const decoder = new VideoDecoder({
+    output: (frame) => {
+      if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) { canvas.width = frame.displayWidth; canvas.height = frame.displayHeight; }
+      ctx.drawImage(frame, 0, 0); frame.close(); frameCount++; const now = performance.now();
+      if (now - lastFpsTs > 1000){ q('statFps').textContent = Math.round((frameCount*1000)/(now-lastFpsTs)); q('statLat').textContent = Math.round(performance.now() - now) + 'ms'; frameCount=0; lastFpsTs=now; }
+    }, error: (e) => console.error(e)
+  });
+  decoder.configure({ codec: 'avc1.4d0028', optimizeForLatency: true });
+  currentStream = conn.openStream(`shell:screenrecord --output-format=h264 --size ${outW}x${outH} --bit-rate 3000000 -`);
+  let pending = new Uint8Array(0), currentFrameNals = [], hasSlice = false, ts = 0, sawKey = false;
+  try {
+    for await (const chunk of currentStream){
+      pending = window.concatBytes_rec(pending, chunk); const { nals, rest } = splitAnnexB(pending); pending = rest;
+      for (const nal of nals){
+        const type = nal[0] & 0x1F;
+        if ((type===1 || type===5) && hasSlice) {
+          if (currentFrameNals.length) {
+            const isKey = currentFrameNals.some(n => (n[0]&0x1F)===5); if (isKey) sawKey = true;
+            if (sawKey) { const data = window.concatBytes_rec(...currentFrameNals.map(n => window.concatBytes_rec(new Uint8Array([0,0,0,1]), n))); decoder.decode(new EncodedVideoChunk({ type: isKey?'key':'delta', timestamp: ts, data })); ts += 33333; }
+            currentFrameNals = []; hasSlice = false;
+          }
+        }
+        currentFrameNals.push(nal); if (type===1 || type===5) hasSlice = true;
+      }
+    }
+  } catch(e){}
+}
+
+function getCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect(); const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
+  const drawW = canvas.width * scale, drawH = canvas.height * scale;
+  const offsetX = (rect.width - drawW) / 2, offsetY = (rect.height - drawH) / 2;
+  let x = Math.round(((e.clientX - rect.left - offsetX) / drawW) * dynamicDeviceSize.w);
+  let y = Math.round(((e.clientY - rect.top - offsetY) / drawH) * dynamicDeviceSize.h);
+  return { x: Math.max(0, Math.min(dynamicDeviceSize.w, x)), y: Math.max(0, Math.min(dynamicDeviceSize.h, y)) };
+}
+
+let pDown = false, sX, sY, sT;
+canvas.addEventListener('pointerdown', (e) => { if (!conn || !dynamicDeviceSize) return; pDown = true; canvas.setPointerCapture(e.pointerId); const c = getCanvasCoords(e); sX = c.x; sY = c.y; sT = Date.now(); });
+canvas.addEventListener('pointerup', async (e) => {
+  if (!pDown) return; pDown = false; canvas.releasePointerCapture(e.pointerId); const c = getCanvasCoords(e), dur = Date.now() - sT, dist = Math.hypot(c.x - sX, c.y - sY);
+  try { if (dist > 15) await conn.runShell(`input swipe ${sX} ${sY} ${c.x} ${c.y} ${Math.min(dur, 2000)}`); else await conn.runShell(`input tap ${c.x} ${c.y}`); } catch(e){}
+});
+
+async function sendKey(c){ if(conn) try{ await conn.runShell(`input keyevent ${c}`); }catch(e){} }
+q('btnHome').addEventListener('click', ()=>sendKey(3)); q('btnBack').addEventListener('click', ()=>sendKey(4)); q('btnRecent').addEventListener('click', ()=>sendKey(187)); q('btnPower').addEventListener('click', ()=>sendKey(26)); q('btnVolDown').addEventListener('click', ()=>sendKey(25)); q('btnVolUp').addEventListener('click', ()=>sendKey(24));
+
+window.addEventListener('keydown', async (e) => {
+  if (!mirrorActive || !conn) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const map = {'Enter':66,'Backspace':67,'Escape':111,'ArrowUp':19,'ArrowDown':20,'ArrowLeft':21,'ArrowRight':22,'Tab':61,'Space':62};
+  if (map[e.key]) { await sendKey(map[e.key]); e.preventDefault(); } 
+  else if (e.key.length === 1) {
+    let char = e.key === " " ? "%s" : e.key.replace(/(["'$`\\])/g, '\\$1');
+    try { await conn.runShell(`input text ${char}`); } catch(err){}
+    e.preventDefault();
+  }
+});
+</script>
+</body>
+</html>
