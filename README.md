@@ -1,5 +1,5 @@
-# NovaSync
-NovaSync is a free web-based HTML Chromium ADB tool
+# DroidSync
+DroidSync is a free web-based HTML Chromium ADB tool
 
 
 How it works
